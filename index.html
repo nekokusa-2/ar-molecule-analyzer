@@ -720,15 +720,15 @@
         
         if (commonInfo) {
             commonNameDisplay = 
-                `\n\n慣用名: \n${commonInfo.name}` + 
-                `\n備考: \n${commonInfo.note}`; // 備考欄を追加
+                `\n\n慣用名: ${commonInfo.name}` + 
+                `\n備考: ${commonInfo.note}`; // 備考欄を追加
         }
 
         // 表示
         this.analysisDiv.innerText = `--- 構造の分析 ---\n` +
             `主鎖: C${mainLen} (${mainPath.join('-')})\n` +
             `主要官能基: ${pInfo.group.name}\n` +
-            `IUPAC名: \n${finalName}` +
+            `IUPAC名: ${finalName}` +
             commonNameDisplay; // 慣用名と備考を追加
         } else {
             this.analysisDiv.innerText = "--- 構造の分析 ---\n炭素鎖が見つかりません";
@@ -740,8 +740,32 @@
   <head>
     <meta charset="utf-8">
     <style>
-      #debug-div { position: absolute; top: 10px; left: 10px; z-index: 999; color: white; font-family: monospace; font-size: 14px; background: rgba(0,0,0,0.5); padding: 5px; white-space: pre-wrap; }
-      #analysis-div { position: absolute; top: 10px; right: 10px; z-index: 999; color: #00FFFF; font-family: monospace; font-size: 16px; background: rgba(0,0,0,0.5); padding: 10px; white-space: pre-wrap; text-align: right; font-weight: bold; }
+      #debug-div { 
+        position: absolute; 
+        bottom: 10px; /* 左下に変更 */
+        left: 10px; 
+        z-index: 999; 
+        color: white; 
+        font-family: monospace; 
+        font-size: 14px; 
+        background: rgba(0,0,0,0.5); 
+        padding: 5px; 
+        white-space: pre-wrap; 
+      }
+      #analysis-div { 
+        position: absolute; 
+        top: 10px; /* 左上に変更 */
+        left: 10px; 
+        z-index: 999; 
+        color: #00FFFF; 
+        font-family: monospace; 
+        font-size: 16px; 
+        background: rgba(0,0,0,0.5); 
+        padding: 10px; 
+        white-space: pre-wrap; 
+        text-align: left; /* 左寄せに変更 */
+        font-weight: bold; 
+      }
     </style>
   </head>
 
