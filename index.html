@@ -23,17 +23,18 @@
     // 官能基定義
     const FUNCTIONAL_GROUPS = [
         { name: "カルボン酸", suffix: "酸", priority: 1, type: "CARBOXYLIC" },
-        { name: "アルデヒド", suffix: "アール", priority: 2, type: "ALDEHYDE" },
-        { name: "ケトン", suffix: "オン", priority: 3, type: "KETONE" },
-        { name: "アルコール", suffix: "オール", priority: 4, type: "ALCOHOL" },
-        { name: "アルキン", suffix: "イン", priority: 5, type: "ALKYNE" }, // 主鎖名の一部を変形
-        { name: "アルケン", suffix: "エン", priority: 6, type: "ALKENE" }, // 主鎖名の一部を変形
-        { name: "エーテル", suffix: "", priority: 7, type: "ETHER" }, // 接頭辞扱い
-        { name: "アルカン", suffix: "アン", priority: 8, type: "ALKANE" }
+        // エステルを追加
+        { name: "エステル", suffix: "酸", priority: 2, type: "ESTER" }, 
+        { name: "アルデヒド", suffix: "アール", priority: 3, type: "ALDEHYDE" },
+        { name: "ケトン", suffix: "オン", priority: 4, type: "KETONE" },
+        { name: "アルコール", suffix: "オール", priority: 5, type: "ALCOHOL" },
+        { name: "アルキン", suffix: "イン", priority: 6, type: "ALKYNE" }, // 主鎖名の一部を変形
+        { name: "アルケン", suffix: "エン", priority: 7, type: "ALKENE" }, // 主鎖名の一部を変形
+        { name: "エーテル", suffix: "", priority: 8, type: "ETHER" }, // 接頭辞扱い
+        { name: "アルカン", suffix: "アン", priority: 9, type: "ALKANE" }
     ];
 
     // ★★★ 新機能: 慣用名データ (手動追加) ★★★
-    // ★★★ 修正箇所 1: 慣用名データ (構造を変更し、備考欄を追加) ★★★
     // キー: 生成されたIUPAC名
     // 値: { name: 慣用名, note: 備考 }
     const COMMON_NAMES = {
@@ -57,6 +58,14 @@
             name: "メチルアルコール、メタノール (Methanol)", 
             note: "🪵 かつて木材の乾留によって製造されていたため「木精（もくせい）」とも呼ばれます。毒性が非常に強いです。" 
         },
+        "エタン-1,2-ジオール": { 
+            name: "エチレングリコール (Ethylene Glycol)", 
+            note: "🚗 不凍液やポリエチレンテレフタラート（PET）の原料。甘みがあるため誤飲に注意が必要です（人体には有毒）。" 
+        },
+        "プロパン-1,2,3-トリオール": { 
+            name: "グリセリン (Glycerin)", 
+            note: "✨ 油脂（脂肪）の主成分であり、保湿剤として化粧品や医薬品に広く使われます。甘みがあり、無毒です。" 
+        },
         "プロパン-2-オール": { 
             name: "イソプロピルアルコール、2-プロパノール (Isopropanol)", 
             note: "🧼 消毒液や洗浄液として幅広く使われます。ケトン体のアセトンと相互変換の関係にあります。" 
@@ -65,9 +74,17 @@
             name: "エチレン (Ethylene)", 
             note: "🍌 植物ホルモンとして働き、果物の成熟（追熟）を促進する作用があります。最も簡単なアルケンです。" 
         },
+        "プロパ-1-エン": { 
+            name: "プロピレン (Propylene)", 
+            note: "🏭 2番目に単純なアルケン。ポリプロピレン（プラスチック）を製造するための主原料です。" 
+        },
         "エタ-1-イン": { 
             name: "アセチレン (Acetylene)", 
             note: "🔥 酸素と混ぜると約3,300℃の高温が得られるため、ガス溶接や切断に欠かせない燃料ガスとして使われます。" 
+        },
+        "エタ-1-エン-1-オール": { 
+            name: "エテノール、ビニルアルコール (Vinyl alcohol)", 
+            note: "🧪 重合するとポリビニルアルコール（洗濯のり、水溶性フィルムなど）になります。遊離した状態では不安定で、通常は異性体のアセトアルデヒドとして存在します。" 
         },
         "プロパン-2-オン": { 
             name: "アセトン (Acetone)", 
@@ -79,11 +96,34 @@
         },
         "エタンアール": { 
             name: "アセトアルデヒド (Formaldehyde)", 
-            note: "🦠 37%水溶液がホルマリンと呼ばれ、防腐剤や消毒剤として利用されます。刺激臭があります。" 
+            note: "🤢 アルコール（エタノール）が体内で分解されてできる中間物質。二日酔いの原因物質です。強い刺激臭があります。" 
+        },
+        "1-メトキシメタン": { 
+            name: "ジメチルエーテル (Dimethyl ether)", 
+            note: "💨 最も簡単なエーテル。近年はLPガスの代替燃料やエアゾール噴射剤として注目されています。" 
+        },
+        "1-エトキシエタン": { 
+            name: "ジエチルエーテル (Diethyl ether)", 
+            note: "👃 特有の甘い匂いを持つ揮発性の液体です。かつては全身麻酔薬として広く使われていました。" 
+        },
+        "メタン酸メチル": { 
+            name: "ギ酸メチル (Methyl formate)", 
+            note: "🍇 果実臭を持つエステル。有機溶媒として利用されます。" 
+        },
+        "エタン酸エチル": { 
+            name: "酢酸エチル (Ethyl acetate)", 
+            note: "🍍 パイナップルのような芳香を持つ代表的なエステル。有機溶媒や接着剤として使われます。" 
+        },
+        "メタン酸エチル": { 
+            name: "ギ酸エチル (Ethyl Formate)", 
+            note: "🍓 ラズベリーの香りの成分を持つ代表的なエステル。香料や食品添加物としてフレーバーに利用されます。" 
         }
 
         // 必要に応じてここに新しい慣用名と備考を追加してください
     };
+
+    // ★★★ 追記: エステル結合に使われた酸素原子のインデックスを保持するグローバル変数 ★★★
+    let ESTER_OXY_INDICES = []; 
 
     // --- ヘルパー関数群 ---
     function getValence(atomType) {
@@ -194,6 +234,8 @@
     // ★★★ 2. 主要官能基の特定 (位置情報付き) ★★★
     function identifyPrincipalGroup(detectedAtoms, bonds, mainChainPath) {
         let candidates = [];
+        // ★★★ 修正点 1-1: エステルOインデックスの初期化 ★★★
+        ESTER_OXY_INDICES = []; 
         
         // 結合情報から隣接マップ作成
         const getNeighbors = (idx) => {
@@ -204,26 +246,65 @@
             });
             return n;
         };
+        
+        // C鎖の炭素数をカウント (DFS)
+        function countCarbonChain(startIdx, stopIdx, bonds) {
+            let count = 0;
+            let visited = new Set([stopIdx]); 
+            function countC(idx) {
+                count++;
+                visited.add(idx);
+                getNeighbors(idx).forEach(neighbor => {
+                    const next = neighbor.idx;
+                    // Cのみを辿り、既に訪問した原子や停止点を無視
+                    if (detectedAtoms[next].isCarbon && !visited.has(next)) {
+                        countC(next);
+                    }
+                });
+            }
+            countC(startIdx);
+            return count;
+        }
+
 
         // 主鎖上の各炭素について官能基をチェック
         mainChainPath.forEach(cIndex => {
             const neighbors = getNeighbors(cIndex);
             const atomC = detectedAtoms[cIndex];
 
-            // カルボニル系
+            // カルボニル系 C=O
             const doubleO = neighbors.find(n => detectedAtoms[n.idx].isOxygen && n.order === 2);
             if (doubleO) {
-                // カルボン酸 (-COOH)
                 const singleO = neighbors.find(n => detectedAtoms[n.idx].isOxygen && n.order === 1);
+
                 if (singleO) {
                     const oNeighbors = getNeighbors(singleO.idx);
+                    
+                    // 1. カルボン酸 (-COOH)
                     if (oNeighbors.some(n => detectedAtoms[n.idx].isHydrogen)) {
                         candidates.push({ group: FUNCTIONAL_GROUPS.find(g => g.type === "CARBOXYLIC"), atomIndex: cIndex });
                         return;
                     }
+                    
+                    // 2. エステル (-COO-R') の検出
+                    const RPrimeC = oNeighbors.find(n => detectedAtoms[n.idx].isCarbon && !mainChainPath.includes(n.idx));
+                    if (RPrimeC) {
+                        const RPrimeFirstCIndex = RPrimeC.idx;
+                        const RPrimeChainLength = countCarbonChain(RPrimeFirstCIndex, singleO.idx, bonds);
+                        
+                        candidates.push({ 
+                            group: FUNCTIONAL_GROUPS.find(g => g.type === "ESTER"), 
+                            atomIndex: cIndex, 
+                            RPrimeLength: RPrimeChainLength 
+                        });
+                        // ★★★ 修正点 1-2: エステル結合に使われたOのインデックスを保存 ★★★
+                        ESTER_OXY_INDICES.push(singleO.idx);
+                        return;
+                    }
                 }
+                
+                // 上記でリターンされていない場合
                 // アルデヒド (-CHO)
-                // 端の炭素(主鎖上での隣接が1つ以下) かつ Hを持つ
                 const chainNeighbors = neighbors.filter(n => mainChainPath.includes(n.idx));
                 if (chainNeighbors.length <= 1 && neighbors.some(n => detectedAtoms[n.idx].isHydrogen)) {
                        candidates.push({ group: FUNCTIONAL_GROUPS.find(g => g.type === "ALDEHYDE"), atomIndex: cIndex });
@@ -271,7 +352,7 @@
         return { group: bestGroup, occurrences: principals };
     }
 
-    // ★★★ 3. 番号付けの方向決定 ★★★
+    // ★★★ 3. 番号付けの方向決定 (変更なし) ★★★
     function determineDirection(mainChainPath, principalInfo, substituents) {
         const len = mainChainPath.length;
         
@@ -332,12 +413,6 @@
             return n;
         };
 
-        // C原子が主鎖上のC原子と繋がっているか確認
-        const isConnectedToMainChain = (cIndex) => {
-             const neighbors = getNeighbors(cIndex);
-             return neighbors.some(nIdx => mainChainPath.includes(nIdx));
-        };
-        
         // C鎖の炭素数をカウント (DFS)
         function countCarbonChain(startIdx, stopIdx) {
             let count = 0;
@@ -356,6 +431,12 @@
 
 
         detectedAtoms.forEach((atom, idx) => {
+            // ★★★ 修正点 2: エステルに使われたO原子はアルコキシ基としてカウントしない ★★★
+            if (ESTER_OXY_INDICES.includes(idx)) {
+                visitedOxygens.add(idx);
+                return;
+            }
+            
             if (atom.isOxygen && !visitedOxygens.has(idx)) {
                 const neighbors = getNeighbors(idx);
                 const carbonNeighbors = neighbors.filter(n => detectedAtoms[n].isCarbon && n !== idx);
@@ -483,7 +564,7 @@
         let output = "--- 構造解析 ---\n";
         detectedAtoms.forEach((atom, index) => { atom.atomIndex = index; MOLECULE_GRAPH.atoms.push(atom.type); });
         
-        // --- 結合判定ロジック ---
+        // --- 結合判定ロジック (変更なし) ---
         // 1. O-C (C=O)
         for (let i = 0; i < detectedAtoms.length; i++) {
             let atomO = detectedAtoms[i]; if (!atomO.isOxygen) continue;
@@ -597,6 +678,8 @@
                 }
             }
         }
+        // (結合判定ロジックここまで)
+
 
         // 描画
         MOLECULE_GRAPH.bonds.forEach(b => {
@@ -659,13 +742,13 @@
                 const numPrefix = NUMERAL_PREFIXES[locs.length] || "";
                 prefixParts.push(`${locs.join(',')}-${numPrefix}${name}`);
             });
-            const prefixStr = prefixParts.join(''); // アルファベット順ソートは今回は省略(キー順)
+            const prefixStr = prefixParts.join(''); 
 
             // 主鎖名 (Parent)
             let parentName = (mainLen < ALKANE_NAMES.length) ? ALKANE_NAMES[mainLen] : `C${mainLen}`;
             
             // アルケン・アルキンの処理 (語尾変化: アン -> エン/イン)
-            // 多重結合の位置を探す
+            let enYneSuffix = "";
             let doubleBondLocants = [];
             let tripleBondLocants = [];
             for(let k=0; k<orderedPath.length-1; k++) {
@@ -675,9 +758,8 @@
                 if(bond && bond.order === 3) tripleBondLocants.push(k+1);
             }
             
-            let enYneSuffix = "";
             if (doubleBondLocants.length > 0) {
-                parentName = parentName.replace("ン", ""); // プロパン -> プロパ
+                parentName = parentName.replace("ン", ""); 
                 let locStr = doubleBondLocants.join(',');
                 let numPre = NUMERAL_PREFIXES[doubleBondLocants.length] || "";
                 enYneSuffix += `-${locStr}-${numPre}エン`;
@@ -691,45 +773,72 @@
 
             // 接尾辞 (Suffix)
             let suffixStr = "";
-            if (pInfo.group.type !== "ALKANE" && pInfo.group.type !== "ALKENE" && pInfo.group.type !== "ALKYNE" && pInfo.group.type !== "ETHER") {
+            let esterAlkylGroup = ""; // エステル命名用のアルキル基名
+
+            if (pInfo.group.type === "ESTER") {
+                // エステル命名ロジック (この部分は前回の修正では問題なかった部分)
+                const esterOccurrence = pInfo.occurrences[0]; 
+                const RPrimeLength = esterOccurrence.RPrimeLength;
+                const alkylName = ALKYL_NAMES[RPrimeLength] || `C${RPrimeLength}アルキル`;
+                
+                esterAlkylGroup = `${alkylName}`;
+                
+                suffixStr = `-${pInfo.group.suffix}`; // -酸
+                
+                // エステル命名ではロカントは不要
+                enYneSuffix = enYneSuffix.replace(/-[0-9,]+-/g, '-'); 
+                parentName = parentName.replace("ン", ""); // メタ/エタ...を残す（日本語IUPAC名に変換する際に「ン」を戻す）
+
+            } else if (pInfo.group.type !== "ALKANE" && pInfo.group.type !== "ALKENE" && pInfo.group.type !== "ALKYNE" && pInfo.group.type !== "ETHER") {
                 // アルコール、ケトン、アルデヒド、カルボン酸
-                // 位置番号が必要なもの (アルデヒド、カルボン酸は通常1番なので省略されることが多いが、ケトン・アルコールは必要)
                 let pLocs = pInfo.occurrences.map(o => locantMap[o.atomIndex]).sort((a,b)=>a-b);
-                // アルデヒド・カルボン酸は両端なら位置省略可能だが、ここでは単純結合
                 let locStr = pLocs.join(',');
                 let numPre = NUMERAL_PREFIXES[pLocs.length] || "";
                 
-                // 母体名末尾の「ン」をとるかどうか（日本語IUPACでは残すことが多い: プロパンオン -> プロパノン、ブタンオール -> ブタノール）
-                // 簡易実装: そのまま結合
                 suffixStr = `-${locStr}-${numPre}${pInfo.group.suffix}`;
                 
-                // アルデヒド・カルボン酸で位置が1なら省略する慣習への簡易対応
                 if ((pInfo.group.type === "ALDEHYDE" || pInfo.group.type === "CARBOXYLIC") && pLocs.length === 1 && pLocs[0] === 1) {
-                    suffixStr = pInfo.group.suffix; // 位置番号削除
+                    suffixStr = pInfo.group.suffix; 
                 }
             }
 
-            // 文字列の整形 (先頭のハイフン削除など)
-            let finalName = `${prefixStr}${parentName}${enYneSuffix}${suffixStr}`;
-            finalName = finalName.replace(/^-/, "").replace(/--/g, "-");
+            // 最終名の構築
+            let finalName = "";
+            if (pInfo.group.type === "ESTER") {
+                 // アルキル基の名称 (メチル) + 主鎖名 (エタン) + 酸
+                let carboxylicAcidPart = `${prefixStr}${parentName}ン${enYneSuffix}${suffixStr}`;
+                // メタ(ン)酸メチル / エタ(ン)酸メチル の形にするため、一旦削除した「ン」をここで戻す（簡易処理）
+                // ただし、enYneSuffixが入ると「エン酸」や「イン酸」となる。
+                
+                carboxylicAcidPart = carboxylicAcidPart.replace(/^-/, "").replace(/--/g, "-").replace("ン-酸", "ン酸").replace(/-酸$/, '酸').trim();
+                
+                finalName = `${carboxylicAcidPart} ${esterAlkylGroup}`; // 日本語ではカルボン酸部分が先
+                
+            } else {
+                 // 通常の命名規則
+                finalName = `${prefixStr}${parentName}${enYneSuffix}${suffixStr}`;
+            }
+            
+            finalName = finalName.replace(/^-/, "").replace(/--/g, "-").trim();
+            finalName = finalName.replace('酸-', '酸-').replace('酸 ', '酸');
 
-            // ★★★ 新機能: 慣用名の検索と表示 ★★★
-            // ★★★ 修正箇所 2: 慣用名と備考の検索・表示ロジック ★★★
-        const commonInfo = COMMON_NAMES[finalName];
-        let commonNameDisplay = "";
-        
-        if (commonInfo) {
-            commonNameDisplay = 
-                `\n\n慣用名: ${commonInfo.name}` + 
-                `\n備考: ${commonInfo.note}`; // 備考欄を追加
-        }
 
-        // 表示
-        this.analysisDiv.innerText = `--- 構造の分析 ---\n` +
-            `主鎖: C${mainLen} (${mainPath.join('-')})\n` +
-            `主要官能基: ${pInfo.group.name}\n` +
-            `IUPAC名: ${finalName}` +
-            commonNameDisplay; // 慣用名と備考を追加
+            // ★★★ 新機能: 慣用名の検索と表示 (変更なし) ★★★
+            const commonInfo = COMMON_NAMES[finalName];
+            let commonNameDisplay = "";
+            
+            if (commonInfo) {
+                commonNameDisplay = 
+                    `\n\n慣用名: ${commonInfo.name}` + 
+                    `\n備考: ${commonInfo.note}`; // 備考欄を追加
+            }
+
+            // 表示
+            this.analysisDiv.innerText = `--- 構造の分析 ---\n` +
+                `主鎖: C${mainLen} (${mainPath.join('-')})\n` +
+                `主要官能基: ${pInfo.group.name}\n` +
+                `IUPAC名: ${finalName}` +
+                commonNameDisplay; // 慣用名と備考を追加
         } else {
             this.analysisDiv.innerText = "--- 構造の分析 ---\n炭素鎖が見つかりません";
         }
