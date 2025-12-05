@@ -539,9 +539,20 @@
         this.debugDiv = document.querySelector('#debug-div');
         this.analysisDiv = document.querySelector('#analysis-div'); 
         this.bondGroup = document.querySelector('#bond-group'); 
+        // ★★★ 追加: 最後の分析実行時間と更新間隔 (1000ms = 1秒) ★★★
+        this.lastAnalysisTime = 0; 
+        this.updateInterval = 100;
       },
-
-      tick: function () {
+      
+      tick: function (time, timeDelta) {
+        // ★★★ 1秒経過チェック ★★★
+        // time はシーン開始からの経過時間（ミリ秒）
+        if (time - this.lastAnalysisTime < this.updateInterval) {
+            return; // 1秒経っていなければ、分析と描画をスキップ
+        }
+        this.lastAnalysisTime = time; // 分析を実行する時間を記録
+        // ★★★ チェックここまで ★★★
+        
         if (!this.debugDiv || !this.analysisDiv || !this.bondGroup) return; 
 
         while (this.bondGroup.firstChild) this.bondGroup.removeChild(this.bondGroup.firstChild);
@@ -561,7 +572,7 @@
         let detectedAtoms = localDetectedAtoms;
         MOLECULE_GRAPH.atoms = []; MOLECULE_GRAPH.bonds = [];
         let isStable = true;
-        let output = "--- 構造解析 ---\n";
+        let output = "";
         detectedAtoms.forEach((atom, index) => { atom.atomIndex = index; MOLECULE_GRAPH.atoms.push(atom.type); });
         
         // --- 結合判定ロジック (変更なし) ---
@@ -684,7 +695,7 @@
         // 描画
         MOLECULE_GRAPH.bonds.forEach(b => {
             const posA = b.atomAEl.object3D.position; const posB = b.atomBEl.object3D.position;
-            const color = b.order === 1 ? '#FFFFFF' : (b.order === 2 ? '#FFD700' : '#4169E1');
+            const color = b.order === 1 ? '#8E80BB' : (b.order === 2 ? '#E2C64F' : '#66c3c2');
             if (b.order === 1) this.bondGroup.appendChild(createBondCylinder(posA, posB, BOND_RADIUS, color, 0, 1));
             else if (b.order > 1) {
                 this.bondGroup.appendChild(createBondCylinder(posA, posB, BOND_RADIUS, color, MULTIPLE_BOND_OFFSET, 1));
@@ -697,11 +708,11 @@
             let a = detectedAtoms[i];
             let t = a.markerEl.querySelector('a-text');
             if(t) t.setAttribute('value', `${a.type}${i+1} (${a.valenceUsed}/${getValence(a.type)})`);
-            if (a.valenceUsed > getValence(a.type)) { isStable = false; output += `警告: ${a.id} 手が多い\n`; }
-            else if (a.valenceUsed < getValence(a.type) && detectedAtoms.length > 1) { if (a.isCarbon||a.isOxygen) { isStable = false; output += `警告: ${a.id} 手が少ない\n`; } }
+            if (a.valenceUsed > getValence(a.type)) { isStable = false;}
+            else if (a.valenceUsed < getValence(a.type) && detectedAtoms.length > 1) { if (a.isCarbon||a.isOxygen) { isStable = false;} }
         }
-        if (isStable && detectedAtoms.length>0) { output += "✅ 安定"; this.debugDiv.style.color = '#00FF00'; }
-        else { this.debugDiv.style.color = '#FF0000'; output += "❌ 不安定"; }
+        if (isStable && detectedAtoms.length>0) { output += "安定"; this.debugDiv.style.color = '#66c3c2'; }
+        else { this.debugDiv.style.color = '#db6172'; output += "不安定"; }
         this.debugDiv.innerText = output;
 
         // ============================================================
@@ -826,24 +837,62 @@
             // ★★★ 新機能: 慣用名の検索と表示 (変更なし) ★★★
             const commonInfo = COMMON_NAMES[finalName];
             let commonNameDisplay = "";
+            let komento = "";
             
             if (commonInfo) {
                 commonNameDisplay = 
-                    `\n\n慣用名: ${commonInfo.name}` + 
-                    `\n備考: ${commonInfo.note}`; // 備考欄を追加
+                    `慣用名: ${commonInfo.name}\n`;
+                komento =  `\n${commonInfo.note}\n`; // 備考欄を追加
             }
 
             // 表示
-            this.analysisDiv.innerText = `--- 構造の分析 ---\n` +
-                `主鎖: C${mainLen} (${mainPath.join('-')})\n` +
-                `主要官能基: ${pInfo.group.name}\n` +
-                `IUPAC名: ${finalName}` +
-                commonNameDisplay; // 慣用名と備考を追加
+            this.analysisDiv.innerText =// `--- 構造の分析 ---\n` +
+                `IUPAC名: ${finalName}\n` +
+            //`主鎖: C${mainLen} (${mainPath.join('-')})\n` + 
+                commonNameDisplay +
+                `官能基: ${pInfo.group.name}\n` +
+                komento;  // 慣用名と備考を追加
         } else {
-            this.analysisDiv.innerText = "--- 構造の分析 ---\n炭素鎖が見つかりません";
+            this.analysisDiv.innerText = "＿＿＿＿＿ 化合物分析カメラ ＿＿＿＿＿\nカードをカメラで読み取ります";
         }
       }
     });
+
+    // ★★★ 新機能: カメラの一時停止/再生機能 ★★★
+    let isPaused = false;
+    
+    // 一時停止/再生ボタンの処理
+    function togglePause() {
+        const scene = document.querySelector('a-scene');
+        const button = document.querySelector('#pause-toggle-button');
+        const icon = document.querySelector('#pause-icon');
+        
+        if (isPaused) {
+            // 再生 (一時停止解除)
+            scene.play(); // A-Frameのシーンを再開
+            isPaused = false;
+            button.style.backgroundColor = 'rgba(66, 107, 225, 0.7)'; // 青色
+            icon.textContent = '❙ ❙'; // アイコンを一時停止に変更
+            document.querySelector('#analysis-div').innerText = "解析中..."; // 画面表示を更新
+        } else {
+            // 一時停止
+            scene.pause(); // A-Frameのシーンを一時停止
+            isPaused = true;
+            button.style.backgroundColor = 'rgba(219, 97, 114, 0.8)'; // 赤色
+            icon.textContent = '▶︎'; // アイコンを再生に変更
+            //document.querySelector('#analysis-div').innerText = "【一時停止中】\n\n" + 
+            document.querySelector('#analysis-div').innerText; // 画面表示を更新
+        }
+        
+        // デバッグ表示も更新
+        document.querySelector('#debug-div').innerText = isPaused ? "一時停止" : "AR結合分析AI";
+    }
+    
+    // ページロード完了後、ボタンにイベントリスナーを登録
+    window.onload = function() {
+        document.getElementById('pause-toggle-button').addEventListener('click', togglePause);
+    };
+
   </script>
     
   <head>
@@ -851,56 +900,260 @@
     <style>
       #debug-div { 
         position: absolute; 
-        bottom: 10px; /* 左下に変更 */
-        left: 10px; 
+        top: 13px; /* 左下に変更 */
+        left: 20px; 
         z-index: 999; 
         color: white; 
         font-family: monospace; 
-        font-size: 14px; 
-        background: rgba(0,0,0,0.5); 
+        font-size: 27px; 
+        background: rgba(255,255,255,1); 
         padding: 5px; 
         white-space: pre-wrap; 
+        border: 5px solid #2b2a54; 
+        border-radius: 10px;
       }
       #analysis-div { 
         position: absolute; 
-        top: 10px; /* 左上に変更 */
-        left: 10px; 
+        top: 60%; /* 左上に変更 */
+        left: 40%;               /* 左端から50%の位置 */
+  transform: translateX(-50%); /* 中央に寄せるための調整 */
         z-index: 999; 
-        color: #00FFFF; 
+        width: 70%; 
+        color: #2b2a54; 
         font-family: monospace; 
-        font-size: 16px; 
-        background: rgba(0,0,0,0.5); 
+        font-size: 18px; 
+        background: #FFFFFF; 
         padding: 10px; 
         white-space: pre-wrap; 
-        text-align: left; /* 左寄せに変更 */
+        text-align: center; /* 左寄せに変更 */
         font-weight: bold; 
+        border: 5px solid #2b2a54;
+        border-radius: 50px;
       }
+      #new-info-panel { 
+  position: absolute; 
+  top: -5px;               /* 上端から10px */
+  left: 50%;               /* 左端から50%の位置 */
+  transform: translateX(-50%); /* 中央に寄せるための調整 */
+  z-index: 99; 
+  width: 100%;            /* 四角の幅 */
+  height: 55px;            /* 高さ自動 */
+  color: #FFFFFF;          /* 文字色を白に */
+  font-family: monospace; 
+  font-size: 14px; 
+  background: #66c3c2; /* 濃い青の背景（半透明） */
+  padding: 10px; 
+  text-align: center;      /* 中央揃え */
+  border: 5px solid #2b2a54;
+  background-image: url('benzen.png');
+    background-size: 250px auto; /* サイズを指定 */
+    background-repeat: repeat; /* 繰り返しをなしに */
+    background-position: center top; /* 位置を指定 */
+}
+#new-info-panel2 { 
+  position: absolute; 
+  bottom: -5px;               /* 上端から10px */
+  left: 50%;               /* 左端から50%の位置 */
+  transform: translateX(-50%); /* 中央に寄せるための調整 */
+  z-index: 99; 
+  width: 100%;            /* 四角の幅 */
+  height: 30px;            /* 高さ自動 */
+  color: #FFFFFF;          /* 文字色を白に */
+  font-family: monospace; 
+  font-size: 14px; 
+  background: #66c3c2; /* 濃い青の背景（半透明） */
+  padding: 10px; 
+  text-align: center;      /* 中央揃え */
+  border: 5px solid #2b2a54;
+  background-image: url('benzen.png');
+    background-size: 250px auto; /* サイズを指定 */
+    background-repeat: repeat; /* 繰り返しをなしに */
+    background-position: center top; /* 位置を指定 */
+}
+
+/* ★★★ 新規追加: 一時停止ボタンのスタイル ★★★ */
+      #pause-toggle-button {
+          position: absolute;
+          top: 8px;
+          right: 20px;
+          z-index: 1000; /* 最前面に */
+          width: 50px;
+          height: 50px;
+          color: #FFFFFF;
+          border-radius: 50%; /* 丸型 */
+          background-color: rgba(66, 107, 225, 0.7); /* 初期は青（再生中） */
+          border: 4px solid #FFFFFF;
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: background-color 0.3s;
+      }
+      
+      #pause-toggle-button:active {
+          transform: scale(0.95);
+      }
+
+      #pause-icon {
+          font-size: 28px; /* 適切なサイズに調整 */
+          line-height: 1;
+      }
+      #chara {
+          position: absolute; 
+  bottom: 10px;               /* 上端から10px */
+  right: -60px;               /* 左端から50%の位置 */
+  z-index: 998; 
+  width: 230px;            /* 四角の幅 */
+  height: 230px;            /* 高さ自動 */
+  color: #FFFFFF;          /* 文字色を白に */
+  font-family: monospace; 
+  font-size: 14px; 
+  background: rgba(0, 0, 0, 0); 
+  padding: 10px; 
+  text-align: center;      /* 中央揃え */
+  background-image: url('yuki3.png');
+    background-size: 250px auto; /* サイズを指定 */
+    background-repeat: no-repeat; /* 繰り返しをなしに */
+    background-position: center top; /* 位置を指定 */
+      }
+          #maru1 {
+          position: absolute; 
+        bottom: 115px; /* 左上に変更 */
+        right: 115px;               /* 左端から50%の位置 */
+         transform: translateX(-50%); /* 中央に寄せるための調整 */
+        z-index: 998; 
+        width: 5px; 
+        height: 5px;
+        color: #2b2a54; 
+        font-family: monospace; 
+        font-size: 18px; 
+        background: #FFFFFF; 
+        padding: 10px; 
+        white-space: pre-wrap; 
+        text-align: center; /* 左寄せに変更 */
+        font-weight: bold; 
+        border: 5px solid #2b2a54;
+        border-radius: 50%;
+      }
+      #maru2 {
+          position: absolute; 
+        bottom: 160px; /* 左上に変更 */
+        right: 140px;               /* 左端から50%の位置 */
+         transform: translateX(-50%); /* 中央に寄せるための調整 */
+        z-index: 998; 
+        width: 25px; 
+        height: 25px;
+        color: #2b2a54; 
+        font-family: monospace; 
+        font-size: 18px; 
+        background: #FFFFFF; 
+        padding: 10px; 
+        white-space: pre-wrap; 
+        text-align: center; /* 左寄せに変更 */
+        font-weight: bold; 
+        border: 5px solid #2b2a54;
+        border-radius: 50%;
+      }
+
     </style>
   </head>
 
   <body style="margin : 0px; overflow: hidden;">
+    <div id="pause-toggle-button">
+        <span id="pause-icon">❙ ❙</span>
+    </div>
+    <div id="chara"></div>
     <div id="debug-div">AR結合分析AI</div>
     <div id="analysis-div">解析中...</div>
-    <a-scene embedded arjs="detectionMode: mono_and_matrix; matrixCodeType: 3x3;" bond-analyzer>
+    <div id="new-info-panel">
+    <p></p>
+    <p></p>
+  </div>
+  <div id="new-info-panel2">
+    <p></p>
+    <p></p>
+  </div>
+  <div id="maru1">
+    <p></p>
+    <p></p>
+  </div>
+  <div id="maru2">
+    <p></p>
+    <p></p>
+  </div>
+    <a-scene embedded arjs="detectionMode: mono_and_matrix; matrixCodeType: 3x3; maxDetectionRate: 30;" bond-analyzer>
       <a-entity id="bond-group"></a-entity>
-      <a-marker id="carbon-1" type="pattern" url="carbon-1.patt"><a-text value="C1" color="red" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="carbon-2" type="pattern" url="carbon-2.patt"><a-text value="C2" color="red" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="carbon-3" type="pattern" url="carbon-3.patt"><a-text value="C3" color="red" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="carbon-4" type="pattern" url="carbon-4.patt"><a-text value="C4" color="red" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="carbon-5" type="pattern" url="carbon-5.patt"><a-text value="C5" color="red" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="carbon-6" type="pattern" url="carbon-6.patt"><a-text value="C6" color="red" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="carbon-7" type="pattern" url="carbon-7.patt"><a-text value="C7" color="red" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="hydrogen-1" type="pattern" url="hydrogen-1.patt"><a-text value="H" color="blue" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="hydrogen-2" type="pattern" url="hydrogen-2.patt"><a-text value="H" color="blue" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="hydrogen-3" type="pattern" url="hydrogen-3.patt"><a-text value="H" color="blue" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="hydrogen-4" type="pattern" url="hydrogen-4.patt"><a-text value="H" color="blue" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="hydrogen-5" type="pattern" url="hydrogen-5.patt"><a-text value="H" color="blue" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="hydrogen-6" type="pattern" url="hydrogen-6.patt"><a-text value="H" color="blue" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="hydrogen-7" type="pattern" url="hydrogen-7.patt"><a-text value="H" color="blue" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="oxygen-1" type="pattern" url="oxygen-1.patt"><a-text value="O" color="green" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="oxygen-2" type="pattern" url="oxygen-2.patt"><a-text value="O" color="green" rotation="-90 0 0"></a-text></a-marker>
-      <a-marker id="double-bond" type="pattern" url="double.patt"><a-box color="yellow" scale="0.5 0.5 0.5"></a-box></a-marker>
-      <a-marker id="triple-bond" type="pattern" url="triple.patt"><a-box color="cyan" scale="0.5 0.5 0.5"></a-box></a-marker>
+      
+      <a-marker id="carbon-1" type="pattern" url="carbon-1.patt">
+          <a-sphere color="#808080" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="carbon-2" type="pattern" url="carbon-2.patt">
+          <a-sphere color="#808080" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="carbon-3" type="pattern" url="carbon-3.patt">
+          <a-sphere color="#808080" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="carbon-4" type="pattern" url="carbon-4.patt">
+          <a-sphere color="#808080" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="carbon-5" type="pattern" url="carbon-5.patt">
+          <a-sphere color="#808080" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="carbon-6" type="pattern" url="carbon-6.patt">
+          <a-sphere color="#808080" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="carbon-7" type="pattern" url="carbon-7.patt">
+          <a-sphere color="#808080" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      
+      <a-marker id="hydrogen-1" type="pattern" url="hydrogen-1.patt">
+          <a-sphere color="#ADD8E6" radius="0.2"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="hydrogen-2" type="pattern" url="hydrogen-2.patt">
+          <a-sphere color="#ADD8E6" radius="0.2"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="hydrogen-3" type="pattern" url="hydrogen-3.patt">
+          <a-sphere color="#ADD8E6" radius="0.2"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="hydrogen-4" type="pattern" url="hydrogen-4.patt">
+          <a-sphere color="#ADD8E6" radius="0.2"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="hydrogen-5" type="pattern" url="hydrogen-5.patt">
+          <a-sphere color="#ADD8E6" radius="0.2"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="hydrogen-6" type="pattern" url="hydrogen-6.patt">
+          <a-sphere color="#ADD8E6" radius="0.2"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="hydrogen-7" type="pattern" url="hydrogen-7.patt">
+          <a-sphere color="#ADD8E6" radius="0.2"></a-sphere>
+          
+      </a-marker>
+      
+      <a-marker id="oxygen-1" type="pattern" url="oxygen-1.patt">
+          <a-sphere color="#db6172" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      <a-marker id="oxygen-2" type="pattern" url="oxygen-2.patt">
+          <a-sphere color="#db6172" radius="0.3"></a-sphere>
+          
+      </a-marker>
+      
+      <a-marker id="double-bond" type="pattern" url="double.patt"></a-marker>
+      <a-marker id="triple-bond" type="pattern" url="triple.patt"></a-box></a-marker>
       <a-entity camera></a-entity>
     </a-scene>
   </body>
